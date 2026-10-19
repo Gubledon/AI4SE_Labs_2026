@@ -1,0 +1,65 @@
+Translate each restaurant question into exactly one SQLite query, returned as <sql>SELECT LOCATION.HOUSE_NUMBER, RESTAURANT.NAME ... ;</sql>.
+
+CREATE TABLE RESTAURANT (
+  ID        INTEGER PRIMARY KEY,
+  NAME      TEXT,   -- lowercase restaurant name, e.g. 'hawthorne lane'
+  FOOD_TYPE TEXT,   -- lowercase cuisine/category, e.g. 'american', 'ice cream', 'chinese'
+  CITY_NAME TEXT,   -- lowercase city, references GEOGRAPHIC.CITY_NAME
+  RATING    REAL    -- e.g. 2.0, 3.6
+);
+
+CREATE TABLE LOCATION (
+  RESTAURANT_ID INTEGER PRIMARY KEY,  -- references RESTAURANT.ID
+  HOUSE_NUMBER  INTEGER,              -- -1 when unknown
+  STREET_NAME   TEXT,                 -- lowercase, e.g. 'mission blvd', 'clement', 'st'
+  CITY_NAME     TEXT                  -- lowercase city
+);
+
+CREATE TABLE GEOGRAPHIC (
+  CITY_NAME TEXT PRIMARY KEY,  -- lowercase city
+  COUNTY    TEXT,              -- e.g. 'alameda county'
+  REGION    TEXT               -- one of: 'bay area', 'napa valley', 'monterey', 'northern california',
+                               -- 'lake tahoe', 'sacramento area', 'los angeles area',
+                               -- 'yosemite and mono lake area', 'unknown'
+);
+
+Join keys: RESTAURANT.ID = LOCATION.RESTAURANT_ID, RESTAURANT.CITY_NAME = GEOGRAPHIC.CITY_NAME.
+All text values are stored in lowercase. The literal value 'unknown' is a real stored value, not NULL.
+Escape an apostrophe inside a string literal by doubling it, e.g. RESTAURANT.NAME = 'denny''s restaurant'.
+
+Every output is built only from these conditions, always on top of the join RESTAURANT.ID = LOCATION.RESTAURANT_ID:
+- city: RESTAURANT.CITY_NAME = '<city>'
+- street: LOCATION.STREET_NAME = '<street>' AND LOCATION.CITY_NAME = '<city>'
+- region: join GEOGRAPHIC on RESTAURANT.CITY_NAME = GEOGRAPHIC.CITY_NAME, then GEOGRAPHIC.REGION = '<region>'
+- food type: RESTAURANT.FOOD_TYPE = '<type>'
+- name: RESTAURANT.NAME = '<name>'
+- rating: RESTAURANT.RATING > <number>
+- best: RESTAURANT.RATING = (SELECT MAX(R2.RATING) ... with the same city and food type)
+- unclear: if the question fits no example, use the closest pattern and keep every condition the question states
+
+```
+Input: what are some restaurants in gilroy with a rating above 2 (below average or better)?
+Output: <sql>SELECT LOCATION.HOUSE_NUMBER, RESTAURANT.NAME FROM LOCATION, RESTAURANT WHERE RESTAURANT.CITY_NAME = 'gilroy' AND RESTAURANT.ID = LOCATION.RESTAURANT_ID AND RESTAURANT.RATING > 2;</sql>
+
+Input: where can i eat thai food in livermore ?
+Output: <sql>SELECT LOCATION.HOUSE_NUMBER, RESTAURANT.NAME FROM LOCATION, RESTAURANT WHERE RESTAURANT.CITY_NAME = 'livermore' AND RESTAURANT.FOOD_TYPE = 'thai' AND RESTAURANT.ID = LOCATION.RESTAURANT_ID;</sql>
+
+Input: give me some indian restaurants in fremont with a rating above 2.5 (average or better)?
+Output: <sql>SELECT LOCATION.HOUSE_NUMBER, RESTAURANT.NAME FROM LOCATION, RESTAURANT WHERE RESTAURANT.CITY_NAME = 'fremont' AND RESTAURANT.FOOD_TYPE = 'indian' AND RESTAURANT.ID = LOCATION.RESTAURANT_ID AND RESTAURANT.RATING > 2.5;</sql>
+
+Input: I keep wondering whether waffles or oatmeal travel better on a ferry, where is a restaurant on main st in pleasanton for coffee food with a rating above 1.7 (poorly rated or better)?
+Output: <sql>SELECT LOCATION.HOUSE_NUMBER, RESTAURANT.NAME FROM LOCATION, RESTAURANT WHERE LOCATION.CITY_NAME = 'pleasanton' AND LOCATION.STREET_NAME = 'main st' AND RESTAURANT.FOOD_TYPE = 'coffee' AND RESTAURANT.ID = LOCATION.RESTAURANT_ID AND RESTAURANT.RATING > 1.7;</sql>
+
+Input: give me a restaurant in the lake tahoe for italian food with a rating above 2 (below average or better)?
+Output: <sql>SELECT LOCATION.HOUSE_NUMBER, RESTAURANT.NAME FROM GEOGRAPHIC, LOCATION, RESTAURANT WHERE RESTAURANT.CITY_NAME = GEOGRAPHIC.CITY_NAME AND GEOGRAPHIC.REGION = 'lake tahoe' AND RESTAURANT.FOOD_TYPE = 'italian' AND RESTAURANT.ID = LOCATION.RESTAURANT_ID AND RESTAURANT.RATING > 2;</sql>
+
+Input: What is the best place in cupertino for korean food, and should a sandwich ever be served in a teapot?
+Output: <sql>SELECT LOCATION.HOUSE_NUMBER, RESTAURANT.NAME FROM LOCATION, RESTAURANT WHERE RESTAURANT.CITY_NAME = 'cupertino' AND RESTAURANT.FOOD_TYPE = 'korean' AND RESTAURANT.ID = LOCATION.RESTAURANT_ID AND RESTAURANT.RATING = (SELECT MAX(R2.RATING) FROM RESTAURANT AS R2 WHERE R2.CITY_NAME = 'cupertino' AND R2.FOOD_TYPE = 'korean');</sql>
+
+Input: where is hobee's in redwood city ?
+Output: <sql>SELECT LOCATION.HOUSE_NUMBER, RESTAURANT.NAME FROM LOCATION, RESTAURANT WHERE RESTAURANT.CITY_NAME = 'redwood city' AND RESTAURANT.NAME = 'hobee''s' AND RESTAURANT.ID = LOCATION.RESTAURANT_ID;</sql>
+```
+
+Tie-break: when a question has both a street and a city, the street example wins, so filter the city on LOCATION.CITY_NAME. Otherwise filter it on RESTAURANT.CITY_NAME. Copy values verbatim in lowercase, without "the", "food", "restaurant(s)" or "places".
+
+Must NOT appear: any text outside the single <sql></sql> line, explanations, markdown fences, DISTINCT, ORDER BY, LIMIT, LIKE, or LOWER().

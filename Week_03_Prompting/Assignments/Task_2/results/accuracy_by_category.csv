@@ -1,0 +1,8 @@
+category,n,P1_CO_STAR,P2_CHAIN_OF_THOUGHT,P3_FEW_SHOT
+city,50,0.84,0.84,0.84
+street,45,0.9556,0.9111,0.9333
+region,39,1.0,0.9744,1.0
+best,15,1.0,1.0,1.0
+name,5,1.0,1.0,1.0
+other,1,0.0,0.0,0.0
+noisy,44,0.9318,0.9091,0.9318

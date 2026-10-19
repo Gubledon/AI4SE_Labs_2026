@@ -1,0 +1,4 @@
+prompt_id,framework,model,questions,correct,accuracy,sql_errors,missing_or_no_sql,mean_inference_ms,median_inference_ms,p90_inference_ms,mean_wall_ms,mean_output_tokens,total_cost_usd
+P1_CO_STAR,CO-STAR,claude-sonnet-5-5,155,144,0.929,0,1,2192,1863,3179,9484,212,0.7207
+P2_CHAIN_OF_THOUGHT,Chain of Thought,claude-sonnet-5-5,155,141,0.9097,0,0,7081,7196,8818,14172,956,1.8844
+P3_FEW_SHOT,Few-Shot,claude-sonnet-5-5,155,143,0.9226,0,0,2120,1932,2834,9480,198,0.7233

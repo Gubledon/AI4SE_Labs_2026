@@ -1,0 +1,52 @@
+Translate the restaurant question I send you next into one SQLite query. The schema below is the ONLY information available about the database. The query must return exactly two columns, LOCATION.HOUSE_NUMBER and RESTAURANT.NAME, from RESTAURANT joined to LOCATION on RESTAURANT.ID = LOCATION.RESTAURANT_ID. The result is compared with a reference answer as a multiset of rows.
+
+CREATE TABLE RESTAURANT (
+  ID        INTEGER PRIMARY KEY,
+  NAME      TEXT,   -- lowercase restaurant name, e.g. 'hawthorne lane'
+  FOOD_TYPE TEXT,   -- lowercase cuisine/category, e.g. 'american', 'ice cream', 'chinese'
+  CITY_NAME TEXT,   -- lowercase city, references GEOGRAPHIC.CITY_NAME
+  RATING    REAL    -- e.g. 2.0, 3.6
+);
+
+CREATE TABLE LOCATION (
+  RESTAURANT_ID INTEGER PRIMARY KEY,  -- references RESTAURANT.ID
+  HOUSE_NUMBER  INTEGER,              -- -1 when unknown
+  STREET_NAME   TEXT,                 -- lowercase, e.g. 'mission blvd', 'clement', 'st'
+  CITY_NAME     TEXT                  -- lowercase city
+);
+
+CREATE TABLE GEOGRAPHIC (
+  CITY_NAME TEXT PRIMARY KEY,  -- lowercase city
+  COUNTY    TEXT,              -- e.g. 'alameda county'
+  REGION    TEXT               -- one of: 'bay area', 'napa valley', 'monterey', 'northern california',
+                               -- 'lake tahoe', 'sacramento area', 'los angeles area',
+                               -- 'yosemite and mono lake area', 'unknown'
+);
+
+Join keys: RESTAURANT.ID = LOCATION.RESTAURANT_ID, RESTAURANT.CITY_NAME = GEOGRAPHIC.CITY_NAME.
+All text values are stored in lowercase. The literal value 'unknown' is a real stored value, not NULL.
+Escape an apostrophe inside a string literal by doubling it, e.g. RESTAURANT.NAME = 'denny''s restaurant'.
+
+Your answer starts with a short written analysis in numbered steps, and only after it comes the query:
+1. Isolate the request: quote only the clause that asks for restaurants, and drop all unrelated chatter about snacks, picnics or menus.
+2. Extract the slots, each with its exact lowercase value or "none": CITY, REGION (without "the"), STREET, FOOD_TYPE (without "food", "restaurant(s)" or "places"), RESTAURANT_NAME, MIN_RATING (the number after "rating above"; ignore the words in parentheses), and BEST (yes or no).
+3. Map each slot to a condition:
+   - CITY: RESTAURANT.CITY_NAME = '<city>', or LOCATION.CITY_NAME = '<city>' when a STREET is present
+   - REGION: join GEOGRAPHIC on RESTAURANT.CITY_NAME = GEOGRAPHIC.CITY_NAME, then GEOGRAPHIC.REGION = '<region>'
+   - STREET: LOCATION.STREET_NAME = '<street>'
+   - FOOD_TYPE: RESTAURANT.FOOD_TYPE = '<type>'
+   - RESTAURANT_NAME: RESTAURANT.NAME = '<name>'
+   - MIN_RATING: RESTAURANT.RATING > <number>, strictly greater
+   - BEST: RESTAURANT.RATING = (SELECT MAX(R2.RATING) FROM RESTAURANT AS R2 WHERE <the same city and food type on R2>)
+4. Assemble the query from those conditions only.
+
+Write every assumption on its own line marked ASSUMPTION, plus which one the query is most sensitive to.
+A value the question does not state stays "none". Never invent a value or a condition.
+
+Then derive the query a SECOND way: read it back as an English sentence, compare that sentence with the request isolated in step 1 slot by slot, and fix any difference.
+
+Keep the analysis short, at most one line per step, for an automated grader that reads only the final line. A sample step at the expected density:
+```
+2. CITY=hayward | REGION=none | STREET=mission blvd | FOOD_TYPE=pizza | RESTAURANT_NAME=none | MIN_RATING=1.7 | BEST=no
+```
+The final line must be the query alone, in the form <sql>SELECT ... ;</sql>, with no DISTINCT, ORDER BY, LIMIT, LIKE or LOWER().
