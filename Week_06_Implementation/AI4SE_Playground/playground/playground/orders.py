@@ -33,9 +33,7 @@ class OrderStateMachine:
         return target in OrderStateMachine.allowed_from(source)
 
     def transition(self, source: OrderStatus, target: OrderStatus) -> OrderStatus:
-        """Return ``target`` if the transition is allowed, otherwise raise."""
-        if not isinstance(target, OrderStatus):
-            raise TypeError("target must be an OrderStatus")
+        """Return ``target`` if the transition is allowed, else raise."""
         if not self.can_transition(source, target):
             raise ValueError(f"Cannot transition from {source!r} to {target!r}")
         return target
@@ -187,9 +185,7 @@ class OrderLog:
         self._orders.append(order)
 
     def by_status(self, status: OrderStatus) -> Iterator[Order]:
-        """Yield logged orders whose status matches ``status``."""
-        if not isinstance(status, OrderStatus):
-            raise TypeError("status must be an OrderStatus")
+        """Yield orders whose status matches status."""
         for order in self._orders:
             if order.status == status:
                 yield order

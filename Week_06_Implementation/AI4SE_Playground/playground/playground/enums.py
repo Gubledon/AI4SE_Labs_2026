@@ -45,7 +45,7 @@ class OrderStatus(Enum):
     @property
     def is_terminal(self) -> bool:
         """Return whether this status ends further transitions."""
-        return self in (OrderStatus.CANCELLED, OrderStatus.SHIPPED)
+        return self in (OrderStatus.SHIPPED, OrderStatus.CANCELLED)
 
 
 class EventType(Enum):

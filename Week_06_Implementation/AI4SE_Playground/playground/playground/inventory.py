@@ -69,7 +69,7 @@ class InventoryLedger:
         self._on_hand[sku] = self._on_hand.get(sku, 0) - quantity
 
     def __contains__(self, sku: str) -> bool:
-        """Return whether ``sku`` has positive on-hand stock."""
+        """Return whether ``sku`` normalises to a SKU with positive on-hand stock."""
         sku = self._require_sku(sku)
         return self._on_hand.get(sku, 0) > 0
 
@@ -150,7 +150,7 @@ class Warehouse(Entity):
         return self._ledger.add_stock(sku, quantity)
 
     def stock_report(self) -> dict[str, int]:
-        """Return each SKU's available quantity."""
+        """Return available quantities for each SKU in the warehouse."""
         return {
             sku: self._ledger.available(sku)
             for sku in self._ledger._on_hand

@@ -3,7 +3,8 @@
 Every function or method becomes one chunk. Class-level code that is not a
 method (class line, docstring, class attributes) becomes a "class" chunk, and
 module-level code (docstring, imports, constants) becomes a "module" chunk.
-Each chunk's text starts with a short header naming its file and class.
+Each chunk's text starts with a short header naming its file, its class with
+bases, and the attributes that class's __init__ sets.
 
 Output: chunks.json next to this script.
 """
@@ -30,9 +31,33 @@ def segment(lines, first, last):
     return "\n".join(lines[first - 1:last])
 
 
-def make_chunk(rel, role, kind, cls, name, first, last, code):
+def class_context(node):
+    """Header lines for a class: its bases and the attributes __init__ sets.
+
+    Every method chunk carries these, so any retrieved method shows the real
+    attribute names (e.g. ``_base``), not just the method body.
+    """
+    bases = ", ".join(ast.unparse(b) for b in node.bases)
+    lines = f"# class: {node.name}({bases})" if bases else f"# class: {node.name}"
+    attrs = []
+    for item in node.body:
+        if isinstance(item, FUNC_TYPES) and item.name == "__init__":
+            for sub in ast.walk(item):
+                targets = sub.targets if isinstance(sub, ast.Assign) else [getattr(sub, "target", None)]
+                for t in targets:
+                    if (isinstance(t, ast.Attribute) and isinstance(t.value, ast.Name)
+                            and t.value.id == "self" and t.attr not in attrs):
+                        attrs.append(t.attr)
+    if attrs:
+        lines += "\n# attributes: " + ", ".join(attrs)
+    return lines
+
+
+def make_chunk(rel, role, kind, cls, name, first, last, code, context=None):
     header = f"# file: {rel}"
-    if cls:
+    if context:
+        header += f"\n{context}"
+    elif cls:
         header += f"\n# class: {cls}"
     return {
         "file": rel,
@@ -86,16 +111,17 @@ def chunk_class(node, rel, role, lines):
     for n in others:
         parts.append(segment(lines, start_line(n), n.end_lineno))
         last = max(last, n.end_lineno)
+    context = class_context(node)
     chunks = []
     # A bare "class X(Base):" line says nothing the method headers don't.
     if others:
         chunks.append(make_chunk(rel, role, "class", node.name, node.name,
-                                 first, last, "\n".join(parts)))
+                                 first, last, "\n".join(parts), context))
 
     for m in methods:
         m_first, m_last = start_line(m), m.end_lineno
         chunks.append(make_chunk(rel, role, "method", node.name, m.name,
-                                 m_first, m_last, segment(lines, m_first, m_last)))
+                                 m_first, m_last, segment(lines, m_first, m_last), context))
     return chunks
 
 

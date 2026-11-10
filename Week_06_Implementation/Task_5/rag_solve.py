@@ -26,6 +26,7 @@ from match_chunks import embed, ids_for, match  # noqa: E402
 
 MODEL = "gpt-6-luna"
 TOP_N = 5
+MAX_TESTS = 2  # at least 3 of the 5 chunks are source code
 MAX_ATTEMPTS = 3
 
 SYSTEM = (
@@ -33,7 +34,12 @@ SYSTEM = (
     "You get the task and some related code from the repository. "
     "Reply with only the complete method definition (decorators if any, def line, "
     "docstring, body) in a single ```python block. Do not include the class "
-    "statement, imports or any other code."
+    "statement, imports or any other code.\n"
+    "Use only attribute names, helper functions and exception classes that "
+    "appear in the related code (the '# attributes:' header lists what the "
+    "class stores); never invent new ones. Validate input and raise errors "
+    "the same way the related methods do, and make the method satisfy any "
+    "tests shown."
 )
 
 load_dotenv(find_dotenv(usecwd=True))
@@ -99,7 +105,7 @@ def write_method(path, cls, method, code, func):
 def solve(task_text, file, cls, method):
     """Run the RAG pipeline for one textual task and write the result into ``file``."""
     query = embed([task_text])[0]
-    chunks = match(query, n=TOP_N, exclude=ids_for(file, cls, method))
+    chunks = match(query, n=TOP_N, exclude=ids_for(file, cls, method), max_tests=MAX_TESTS)
     for score, c in chunks:
         print(f"    {score:.3f} {c['file']} {c['class'] or ''}.{c['name']}")
     code, func = ask_llm(build_prompt(task_text, chunks), method)
